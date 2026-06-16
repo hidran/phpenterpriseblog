@@ -1,0 +1,13 @@
+/vendor/
+/node_modules/
+.env
+.env.*.local
+.phpunit.cache/
+.phpunit.result.cache
+/coverage/
+/tests/E2e/playwright-report/
+/tests/E2e/test-results/
+.DS_Store
+.idea/
+.vscode/
+*.log
