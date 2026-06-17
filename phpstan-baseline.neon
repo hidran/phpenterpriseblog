@@ -1,0 +1,43 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Using nullsafe method call on non\-nullable type PDOStatement\|false\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Console/MigrateCommand.php
+
+		-
+			message: '#^Parameter \#1 \$strategy of method League\\Route\\Router\:\:setStrategy\(\) expects League\\Route\\Strategy\\StrategyInterface, League\\Route\\ContainerAwareInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Router.php
+
+		-
+			message: '#^Call to an undefined method League\\Route\\Http\\Exception\\MethodNotAllowedException\:\:getAllowedMethods\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Kernel.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type PDOStatement\|false\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Repositories/PostRepository.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: src/Support/Env.php
+
+		-
+			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''PDO'' and PDO will always evaluate to true\.$#'
+			identifier: staticMethod.alreadyNarrowedType
+			count: 1
+			path: tests/Unit/Database/PdoConnectionHardeningTest.php
+
+		-
+			message: '#^Parameter \#1 \$options of class App\\Database\\PdoConnection constructor expects array\{dsn\: string, user\: string, password\: string, options\?\: array\<int, int\>\}, array\{dsn\: ''sqlite\:\:memory\:'', user\: '''', password\: '''', options\: array\{20\: true\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Unit/Database/PdoConnectionHardeningTest.php
