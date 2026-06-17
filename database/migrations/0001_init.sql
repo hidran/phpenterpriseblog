@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS posts (
     title        VARCHAR(255) NOT NULL,
     message      TEXT NOT NULL,
     datecreated  DATETIME NOT NULL,
-    user_id      INT NOT NULL,
+    user_id      INT UNSIGNED NOT NULL,
     PRIMARY KEY (id),
     KEY idx_posts_title (title),
     CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS posts (
 CREATE TABLE IF NOT EXISTS post_comments (
     id           INT NOT NULL AUTO_INCREMENT,
     post_id      INT NOT NULL,
-    user_id      INT DEFAULT NULL,
+    user_id      INT UNSIGNED DEFAULT NULL,
     comment      TEXT NOT NULL,
     email        VARCHAR(128) NOT NULL,
     datecreated  DATETIME NOT NULL,

@@ -74,15 +74,22 @@ final readonly class MigrateCommand
         if ($sql === false) {
             throw new RuntimeException("Cannot read {$file}");
         }
+        // DDL statements (CREATE TABLE, etc.) trigger an implicit commit in MySQL,
+        // which ends the transaction begun here. Guard commit/rollBack with
+        // inTransaction() so a DDL migration doesn't blow up on a missing transaction.
         $this->pdo->beginTransaction();
         try {
             $this->pdo->exec($sql);
             $stm = $this->pdo->prepare('INSERT INTO migrations (filename, applied_at) VALUES (:f, NOW())');
             $stm->execute(['f' => basename($file)]);
-            $this->pdo->commit();
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
             fwrite(STDOUT, "Applied: " . basename($file) . "\n");
         } catch (\Throwable $e) {
-            $this->pdo->rollBack();
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             throw $e;
         }
     }

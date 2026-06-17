@@ -27,4 +27,4 @@ WORKDIR /var/www/html
 COPY --from=deps --chown=www-data:www-data /app /var/www/html
 USER www-data
 EXPOSE 9000
-HEALTHCHECK --interval=10s --timeout=2s CMD php -r "exit(extension_loaded('opcache')?0:1);"
+HEALTHCHECK --interval=10s --timeout=2s CMD php -r "exit(extension_loaded('Zend OPcache')?0:1);"
