@@ -26,6 +26,52 @@
 - **Commits:** each task ends with one commit. Commit message format: `<area>: <short imperative>` (e.g., `router: add parameterized route matching`). All commits trailer: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
 - **Migrations are forward-only.** No `DROP` columns in the same release that introduces their replacement.
 
+## Course companion — per-task discipline
+
+This project is also a Udemy course. Sibling repository `../phpblog-udemy/` holds one lesson per task. **Every task in Phases 1–8 — without exception, even if the task body doesn't repeat it — applies the following discipline immediately after its final commit:**
+
+### Step A — Tag the commit in `phpenterpriseblog`
+
+For Task `<phase>.<task>`, tag the just-made commit with the course tag:
+```bash
+git tag lesson-<phase>-<task>          # examples: lesson-1-1, lesson-3-3, lesson-7-5
+```
+This is what lets a student run `git checkout lesson-1-3` and see exactly the state at the end of that lesson.
+
+### Step B — Write the companion lesson in `phpblog-udemy`
+
+Create the matching lesson file in the sibling repo:
+- Path: `../phpblog-udemy/<MM>-<module-slug>/<MM>-<NN>-<lesson-slug>.md`
+- Module slug ↔ phase mapping is in `../phpblog-udemy/COURSE_OUTLINE.md`. Example: Task 1.3 → `../phpblog-udemy/01-foundation/01-03-router-with-tdd.md`.
+- Use `../phpblog-udemy/templates/lesson.md` as the structure — every section in that template must be filled in (no placeholders).
+- Required sections:
+  - **YAML frontmatter** with correct `module`, `lesson`, `duration_minutes` (estimate), `git_tag`, `related_code` (files touched), `prereq_lessons`.
+  - **The "why" — teacher's notes:** *the most important section.* Explain the choice being made, what alternatives were considered, what trade-off is being accepted, what real-world failure mode this guards against. Two to four paragraphs minimum.
+  - **Principles in play:** name the engineering principles demonstrated (e.g. *Single Responsibility*, *TDD*, *Open/Closed*, *Composition over Inheritance*) and for each say *why it applies here*.
+  - **Walkthrough:** a per-section recording script with rough time estimates summing to roughly the `duration_minutes`.
+  - **Try it yourself / Common pitfalls / Recap / Next lesson:** all filled in.
+
+### Step C — Commit the lesson in `phpblog-udemy`
+
+```bash
+cd ../phpblog-udemy
+git add <MM>-<module-slug>/<MM>-<NN>-<lesson-slug>.md
+git commit -m "lesson <MM>-<NN>: <short topic>
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+cd -
+```
+
+### Rules of thumb
+
+- **Code commit first, then tag, then write lesson, then commit lesson.** The lesson references concrete file contents from the just-made code commit.
+- **Lessons must match the code actually written.** If a subagent deviates from the planned snippet, the lesson reflects what was built, not what the plan said.
+- **No skipping.** Every task in Phases 1–8 ships a lesson. Phase 0 (Task 0.1) skips — Module 00 lessons are hand-written.
+- **Length:** 800–1500 words. The "why" section carries the weight.
+- **Filename slugs:** lower-kebab-case, descriptive (`01-03-router-with-tdd.md`, not `01-03-task.md`).
+
+A final task (8.6) builds the PDFs from all lessons via `make -C build all` in `phpblog-udemy/`.
+
 ---
 
 ## Phase 0 — Workspace prerequisites
@@ -4413,6 +4459,51 @@ git add README.md
 git commit -m "docs(readme): rewrite with quickstart, stack, commands, release flow
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8.6: Build course PDFs
+
+**Files:**
+- Run-only — no new files in `phpenterpriseblog`. Outputs in `../phpblog-udemy/pdf/`.
+
+**Interfaces:**
+- Consumes: every lesson markdown written across Phases 1–8 plus Module 00.
+- Produces: one PDF per lesson under `../phpblog-udemy/pdf/<module>/<lesson>.pdf`.
+
+- [ ] **Step 1: Install prerequisites if missing**
+
+```bash
+command -v pandoc  >/dev/null || brew install pandoc
+command -v xelatex >/dev/null || brew install --cask mactex-no-gui   # ~3.5 GB, one-time
+```
+
+- [ ] **Step 2: Build all PDFs**
+
+```bash
+cd ../phpblog-udemy
+make -C build all
+ls pdf/**/*.pdf | head
+```
+Expected: each lesson produces a PDF in `pdf/<module>/<lesson>.pdf`.
+
+- [ ] **Step 3: Commit (in the course repo)**
+
+```bash
+cd ../phpblog-udemy
+git add pdf/   # .gitignore excludes pdf/*.pdf; this commits .gitkeep updates only
+git commit --allow-empty -m "course: build PDFs for all lessons (artifacts gitignored)
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+cd -
+```
+
+- [ ] **Step 4: Tag the source repo for the final state**
+
+```bash
+git tag lesson-8-6
+git tag v0.1.0-course
 ```
 
 ---
