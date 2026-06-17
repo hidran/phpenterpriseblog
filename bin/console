@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$root = dirname(__DIR__);
+if (is_file($root . '/.env')) {
+    Dotenv\Dotenv::createImmutable($root)->load();
+}
+
+$pdo = App\Database\ConnectionFactory::fromEnv();
+$app = new App\Console\Application();
+$app->register('migrate', new App\Console\MigrateCommand($pdo, $root . '/database/migrations'));
+
+exit($app->run($argv));
