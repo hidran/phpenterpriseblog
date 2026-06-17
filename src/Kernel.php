@@ -14,6 +14,7 @@ use App\Support\View;
 use Dotenv\Dotenv;
 use League\Container\Container;
 use League\Container\ReflectionContainer;
+use League\Route\Http\Exception\MethodNotAllowedException;
 use League\Route\Http\Exception\NotFoundException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7Server\ServerRequestCreator;
@@ -41,6 +42,11 @@ final class Kernel
             $response = (new Psr17Factory())->createResponse(404)
                 ->withHeader('Content-Type', 'text/html; charset=utf-8');
             $response->getBody()->write('<h1>404 Not Found</h1>');
+        } catch (MethodNotAllowedException $e) {
+            $response = (new Psr17Factory())->createResponse(405)
+                ->withHeader('Content-Type', 'text/html; charset=utf-8')
+                ->withHeader('Allow', implode(', ', $e->getAllowedMethods()));
+            $response->getBody()->write('<h1>405 Method Not Allowed</h1>');
         }
 
         $this->emit($response);
@@ -84,8 +90,10 @@ final class Kernel
     {
         http_response_code($response->getStatusCode());
         foreach ($response->getHeaders() as $name => $values) {
+            $replace = strcasecmp($name, 'Set-Cookie') !== 0;
             foreach ($values as $value) {
-                header($name . ': ' . $value, false);
+                header($name . ': ' . $value, $replace);
+                $replace = false; // subsequent values for the same header name must append
             }
         }
         echo $response->getBody();

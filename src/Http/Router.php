@@ -29,6 +29,9 @@ final class Router implements RequestHandlerInterface
             foreach ($table as $path => [$class, $action]) {
                 $normalized = $path === '/' ? '/' : '/' . ltrim($path, '/');
                 $normalized = preg_replace('/:([A-Za-z_][A-Za-z0-9_]*)/', '{$1}', $normalized);
+                if ($normalized === null) {
+                    throw new \RuntimeException("Route placeholder rewrite failed for path: {$path}");
+                }
                 $this->router->map(strtoupper($method), $normalized, [$class, $action]);
             }
         }
