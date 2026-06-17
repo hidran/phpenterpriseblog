@@ -1,0 +1,60 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+      target: runtime
+    volumes:
+      - .:/var/www/html
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_DATABASE: phpenterpriseblog
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: devpass
+      REDIS_DSN: redis://:devpass@redis:6379/0
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+    depends_on:
+      mysql:  { condition: service_healthy }
+      redis:  { condition: service_healthy }
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["8080:80"]
+    volumes:
+      - ./deploy/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - .:/var/www/html:ro
+    depends_on: [app]
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: phpenterpriseblog
+      MYSQL_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-uroot", "-proot"]
+      interval: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "devpass"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "devpass", "ping"]
+      interval: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog
+    ports: ["8025:8025"]
+
+volumes:
+  mysql_data: {}
