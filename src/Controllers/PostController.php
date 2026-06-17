@@ -20,11 +20,17 @@ final class PostController extends BaseController
         parent::__construct($view);
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function index(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         return $this->respond($this->view->render('pages/posts/index', ['posts' => $this->posts->all()]));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function show(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         $post = $this->posts->findById((int) ($args['id'] ?? 0));
@@ -37,6 +43,9 @@ final class PostController extends BaseController
         ]));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function create(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         if (empty($_SESSION['loggedin'])) {
@@ -45,6 +54,9 @@ final class PostController extends BaseController
         return $this->respond($this->view->render('pages/posts/create'));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function edit(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         if (empty($_SESSION['loggedin'])) {
@@ -57,6 +69,9 @@ final class PostController extends BaseController
         return $this->respond($this->view->render('pages/posts/edit', ['post' => $post]));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function save(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         if (empty($_SESSION['loggedin'])) {
@@ -76,6 +91,9 @@ final class PostController extends BaseController
         return $this->redirect('/');
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function saveComment(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         if (empty($_SESSION['loggedin'])) {
@@ -92,6 +110,9 @@ final class PostController extends BaseController
         return $this->redirect('/posts/' . $postId);
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function delete(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         if (empty($_SESSION['loggedin'])) {

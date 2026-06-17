@@ -9,18 +9,8 @@ use League\Container\Container;
 use League\Container\ReflectionContainer;
 use League\Route\Http\Exception\NotFoundException;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-
-final class StubController
-{
-    public function hello(ServerRequestInterface $request, array $args = []): ResponseInterface
-    {
-        return new Response(200, [], 'hello ' . ($args['name'] ?? 'world'));
-    }
-}
 
 final class RouterTest extends TestCase
 {

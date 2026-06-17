@@ -28,7 +28,7 @@ final class MigrateCommand
         $applied = $this->appliedSet();
         $files   = $this->files();
 
-        $pending = array_filter($files, static fn(string $f) => !isset($applied[basename($f)]));
+        $pending = array_filter($files, static fn (string $f) => !isset($applied[basename($f)]));
         if ($pending === []) {
             fwrite(STDOUT, "No pending migrations.\n");
             return 0;

@@ -18,6 +18,9 @@ final class AuthController extends BaseController
         parent::__construct($view);
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function showLogin(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         return $this->respond($this->view->render('pages/auth/login', [
@@ -26,6 +29,9 @@ final class AuthController extends BaseController
         ]));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function showSignup(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         return $this->respond($this->view->render('pages/auth/login', [
@@ -34,6 +40,9 @@ final class AuthController extends BaseController
         ]));
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function login(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         $post = (array) ($request->getParsedBody() ?? $_POST);
@@ -63,6 +72,9 @@ final class AuthController extends BaseController
         return $this->redirect($result->success ? '/' : '/auth/login');
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function signup(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         $post = (array) ($request->getParsedBody() ?? $_POST);
@@ -96,6 +108,9 @@ final class AuthController extends BaseController
         return $this->redirect($result->success ? '/' : '/auth/signup');
     }
 
+    /**
+     * @param array<string, string> $args
+     */
     public function logout(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         $_SESSION = [];

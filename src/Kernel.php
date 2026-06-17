@@ -66,7 +66,7 @@ final class Kernel
         $container->delegate(new ReflectionContainer(cacheResolutions: true));
 
         $container->addShared(PDO::class, ConnectionFactory::fromEnv(...));
-        $container->addShared(View::class, fn() => new View($this->basePath . '/resources/views'));
+        $container->addShared(View::class, fn () => new View($this->basePath . '/resources/views'));
 
         $container->add(PostRepository::class)->addArgument(PDO::class);
         $container->add(UserRepository::class)->addArgument(PDO::class);
@@ -74,7 +74,7 @@ final class Kernel
         $container->add(AuthService::class)->addArgument(UserRepository::class);
 
         $routes = require $this->basePath . '/config/routes.php';
-        $container->addShared(Router::class, fn() => new Router($routes, $container));
+        $container->addShared(Router::class, fn () => new Router($routes, $container));
 
         return $container;
     }
