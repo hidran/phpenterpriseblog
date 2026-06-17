@@ -2000,6 +2000,547 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
+### Task 1.15: PSR-7/15 upgrade — league/route + nyholm/psr7
+
+> **Foundation epilogue.** Tasks 1.1–1.14 built the from-scratch HTTP layer so students *understand* routing, requests, and responses. This task swaps the hand-rolled pieces for the PSR-7/15 industry standard, preserving every URL and the legacy behavior. The course narrative becomes "we built it once to learn — now we adopt the standard, and because we understood it, it isn't magic."
+
+**Files:**
+- Modify: `composer.json` (add `league/route ^6.2`, `nyholm/psr7 ^1.8`, `nyholm/psr7-server ^1.1`), `composer.lock` (regenerated)
+- Delete: `src/Http/Request.php`, `src/Http/Response.php` (replaced by PSR-7 interfaces; the historical originals remain checkout-able at `lesson-1-9`)
+- Replace: `src/Http/Router.php` — now thin wrapper over `League\Route\Router` that accepts our `config/routes.php` shape
+- Modify: `src/Kernel.php` — becomes a PSR-15 `RequestHandlerInterface`: builds a `ServerRequestInterface` from globals via `nyholm/psr7-server`, dispatches via `League\Route\Router::handle(ServerRequestInterface)`, emits the returned `ResponseInterface`
+- Modify: `src/Controllers/BaseController.php` — drop the legacy `$content`/`display()` shape; add a protected `respond(string $body, int $status = 200, array $headers = []): ResponseInterface` helper that wraps a page fragment with the layout; add `redirect(string $url): ResponseInterface` and `json(array $data, int $status = 200): ResponseInterface` helpers
+- Modify: `src/Controllers/PostController.php`, `src/Controllers/AuthController.php` — each public method now: `public function index(ServerRequestInterface $request, array $params = []): ResponseInterface`. Returns built via `$this->respond(...)` / `$this->redirect(...)` / `$this->json(...)`.
+- Modify: `src/Controllers/HealthController.php` placeholder forward-declared (Task 4.3 will implement; for now leave a stub with the PSR-15 signature) — actually skip if HealthController doesn't exist yet (Task 4.3 creates it with the PSR-7 signature directly)
+- Modify: `config/routes.php` — same shape (`[Controller::class, 'method']`); no changes to the route table itself
+- Modify: `tests/Unit/Http/RouterTest.php` — adapt assertions so the router returns a configured `League\Route\Router` instance OR test that `dispatch(ServerRequest)` produces a `ResponseInterface` with the right body for known routes; pick the simpler shape
+
+**Interfaces:**
+- Consumes: PSR-7 `ServerRequestInterface`, PSR-7 `ResponseInterface`, PSR-17 factories (`Psr17Factory` from nyholm/psr7), PSR-15 `RequestHandlerInterface`
+- Produces:
+  - `App\Http\Router::__construct(array $routes)` — same outward signature
+  - `App\Http\Router::handle(ServerRequestInterface $request): ResponseInterface` (PSR-15 contract)
+  - `App\Kernel::handle(): void` unchanged at the call site; internally now PSR-7/15
+  - Controllers: `(ServerRequestInterface $request, array $params = []): ResponseInterface`
+
+- [ ] **Step 1: Add Composer dependencies**
+
+```bash
+composer require league/route:^6.2 nyholm/psr7:^1.8 nyholm/psr7-server:^1.1
+```
+
+- [ ] **Step 2: Delete legacy Http\Request and Http\Response**
+
+```bash
+git rm src/Http/Request.php src/Http/Response.php
+```
+
+The historical implementations remain checkout-able at tag `lesson-1-9`.
+
+- [ ] **Step 3: Rewrite `src/Http/Router.php`**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http;
+
+use League\Route\Router as LeagueRouter;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+final class Router implements RequestHandlerInterface
+{
+    private readonly LeagueRouter $router;
+
+    /**
+     * @param array<string, array<string, array{0: class-string, 1: string}>> $routes
+     */
+    public function __construct(array $routes, ContainerInterface $container)
+    {
+        $this->router = new LeagueRouter();
+        $this->router->setStrategy(
+            (new \League\Route\Strategy\ApplicationStrategy())
+                ->setContainer($container)
+        );
+
+        foreach ($routes as $method => $table) {
+            foreach ($table as $path => [$class, $action]) {
+                $normalized = $path === '/' ? '/' : '/' . ltrim($path, '/');
+                $this->router->map(strtoupper($method), $normalized, [$class, $action]);
+            }
+        }
+    }
+
+    public function handle(ServerRequestInterface $request): ResponseInterface
+    {
+        return $this->router->handle($request);
+    }
+}
+```
+
+- [ ] **Step 4: Rewrite `src/Kernel.php` as a PSR-15 dispatcher**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App;
+
+use App\Database\ConnectionFactory;
+use App\Http\Router;
+use App\Repositories\CommentRepository;
+use App\Repositories\PostRepository;
+use App\Repositories\UserRepository;
+use App\Services\AuthService;
+use App\Support\View;
+use Dotenv\Dotenv;
+use League\Container\Container;
+use League\Container\ReflectionContainer;
+use League\Route\Http\Exception\NotFoundException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7Server\ServerRequestCreator;
+use PDO;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class Kernel
+{
+    public function __construct(private readonly string $basePath)
+    {
+    }
+
+    public function handle(): void
+    {
+        $this->loadEnv();
+        session_start();
+
+        $container = $this->buildContainer();
+        $request   = $this->buildRequest();
+
+        try {
+            $response = $container->get(Router::class)->handle($request);
+        } catch (NotFoundException) {
+            $response = (new Psr17Factory())->createResponse(404)
+                ->withHeader('Content-Type', 'text/html; charset=utf-8');
+            $response->getBody()->write('<h1>404 Not Found</h1>');
+        }
+
+        $this->emit($response);
+    }
+
+    private function loadEnv(): void
+    {
+        $envFile = $this->basePath . '/.env';
+        if (is_file($envFile)) {
+            Dotenv::createImmutable($this->basePath)->load();
+        }
+    }
+
+    private function buildContainer(): Container
+    {
+        $container = new Container();
+        $container->delegate(new ReflectionContainer(cacheResolutions: true));
+
+        $container->addShared(PDO::class, ConnectionFactory::fromEnv(...));
+        $container->addShared(View::class, fn() => new View($this->basePath . '/resources/views'));
+
+        $container->add(PostRepository::class)->addArgument(PDO::class);
+        $container->add(UserRepository::class)->addArgument(PDO::class);
+        $container->add(CommentRepository::class)->addArgument(PDO::class);
+        $container->add(AuthService::class)->addArgument(UserRepository::class);
+
+        $routes = require $this->basePath . '/config/routes.php';
+        $container->addShared(Router::class, fn() => new Router($routes, $container));
+
+        return $container;
+    }
+
+    private function buildRequest(): ServerRequestInterface
+    {
+        $factory = new Psr17Factory();
+        return (new ServerRequestCreator($factory, $factory, $factory, $factory))
+            ->fromGlobals();
+    }
+
+    private function emit(ResponseInterface $response): void
+    {
+        http_response_code($response->getStatusCode());
+        foreach ($response->getHeaders() as $name => $values) {
+            foreach ($values as $value) {
+                header($name . ': ' . $value, false);
+            }
+        }
+        echo $response->getBody();
+    }
+}
+```
+
+- [ ] **Step 5: Rewrite `src/Controllers/BaseController.php`**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Support\View;
+use Nyholm\Psr7\Response;
+use Psr\Http\Message\ResponseInterface;
+
+abstract class BaseController
+{
+    public function __construct(protected readonly View $view)
+    {
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     */
+    protected function respond(string $body, int $status = 200, array $headers = []): ResponseInterface
+    {
+        $html = $this->view->render('layouts/default', ['content' => $body]);
+        $headers += ['Content-Type' => 'text/html; charset=utf-8'];
+        return new Response($status, $headers, $html);
+    }
+
+    protected function redirect(string $url, int $status = 302): ResponseInterface
+    {
+        return new Response($status, ['Location' => $url]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected function json(array $data, int $status = 200): ResponseInterface
+    {
+        return new Response($status, ['Content-Type' => 'application/json'], json_encode($data, JSON_THROW_ON_ERROR));
+    }
+}
+```
+
+- [ ] **Step 6: Rewrite `src/Controllers/PostController.php`**
+
+Each method now: `public function METHOD(ServerRequestInterface $request, array $args = []): ResponseInterface`. Use `$args['id']` for parameterized routes (league/route passes route placeholders as the second arg's associative array by default with ApplicationStrategy). Use `$request->getParsedBody()` (after `nyholm/psr7-server` parsing) for POST data; for our usage, fall back to `$_POST` for now via the shim `$post = (array) ($request->getParsedBody() ?? $_POST);`.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Repositories\CommentRepository;
+use App\Repositories\PostRepository;
+use App\Support\View;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class PostController extends BaseController
+{
+    public function __construct(
+        View $view,
+        private readonly PostRepository $posts,
+        private readonly CommentRepository $comments,
+    ) {
+        parent::__construct($view);
+    }
+
+    public function index(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        return $this->respond($this->view->render('pages/posts/index', ['posts' => $this->posts->all()]));
+    }
+
+    public function show(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        $post = $this->posts->findById((int) ($args['id'] ?? 0));
+        if ($post === null) {
+            return $this->respond($this->view->render('pages/errors/404'), 404);
+        }
+        return $this->respond($this->view->render('pages/posts/show', [
+            'post'     => $post,
+            'comments' => $this->comments->allForPost($post->id),
+        ]));
+    }
+
+    public function create(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        if (empty($_SESSION['loggedin'])) {
+            return $this->redirect('/auth/login');
+        }
+        return $this->respond($this->view->render('pages/posts/create'));
+    }
+
+    public function edit(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        if (empty($_SESSION['loggedin'])) {
+            return $this->redirect('/auth/login');
+        }
+        $post = $this->posts->findById((int) ($args['id'] ?? 0));
+        if ($post === null) {
+            return $this->redirect('/');
+        }
+        return $this->respond($this->view->render('pages/posts/edit', ['post' => $post]));
+    }
+
+    public function save(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        if (empty($_SESSION['loggedin'])) {
+            return $this->redirect('/auth/login');
+        }
+        $post = (array) ($request->getParsedBody() ?? $_POST);
+        $data = [
+            'user_id' => (int) ($_SESSION['userData']['id'] ?? 0),
+            'title'   => (string) ($post['title'] ?? ''),
+            'message' => (string) ($post['message'] ?? ''),
+        ];
+        if (isset($args['id'])) {
+            $this->posts->update((int) $args['id'], ['title' => $data['title'], 'message' => $data['message']]);
+        } else {
+            $this->posts->save($data);
+        }
+        return $this->redirect('/');
+    }
+
+    public function saveComment(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        if (empty($_SESSION['loggedin'])) {
+            return $this->redirect('/auth/login');
+        }
+        $post = (array) ($request->getParsedBody() ?? $_POST);
+        $postId = (int) ($args['id'] ?? 0);
+        $this->comments->save([
+            'post_id' => $postId,
+            'user_id' => (int) ($_SESSION['userData']['id'] ?? 0),
+            'email'   => (string) ($post['email'] ?? ''),
+            'comment' => (string) ($post['comment'] ?? ''),
+        ]);
+        return $this->redirect('/posts/' . $postId);
+    }
+
+    public function delete(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        if (empty($_SESSION['loggedin'])) {
+            return $this->redirect('/auth/login');
+        }
+        $this->posts->delete((int) ($args['id'] ?? 0));
+        return $this->redirect('/');
+    }
+}
+```
+
+- [ ] **Step 7: Rewrite `src/Controllers/AuthController.php`**
+
+Same shape — each method returns `ResponseInterface`. CSRF still in `$_SESSION['csrf']`. XHR detection via `$request->getHeaderLine('x-requested-with')` (case-insensitive in PSR-7).
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Services\AuthService;
+use App\Support\View;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class AuthController extends BaseController
+{
+    public function __construct(
+        View $view,
+        private readonly AuthService $auth,
+    ) {
+        parent::__construct($view);
+    }
+
+    public function showLogin(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        return $this->respond($this->view->render('pages/auth/login', [
+            'token'  => $this->csrfToken(),
+            'signup' => false,
+        ]));
+    }
+
+    public function showSignup(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        return $this->respond($this->view->render('pages/auth/login', [
+            'token'  => $this->csrfToken(),
+            'signup' => true,
+        ]));
+    }
+
+    public function login(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        $post = (array) ($request->getParsedBody() ?? $_POST);
+        $result = $this->auth->verifyLogin(
+            email: (string) ($post['email'] ?? ''),
+            password: (string) ($post['password'] ?? ''),
+            token: (string) ($post['_csrf'] ?? ''),
+            sessionToken: (string) ($_SESSION['csrf'] ?? ''),
+        );
+
+        if ($result->success && $result->user !== null) {
+            session_regenerate_id();
+            $_SESSION['loggedin'] = true;
+            $_SESSION['userData'] = [
+                'id'       => $result->user->id,
+                'email'    => $result->user->email,
+                'username' => $result->user->username,
+                'roletype' => $result->user->roletype,
+            ];
+        } else {
+            $_SESSION['message'] = $result->message;
+        }
+
+        if (strtoupper($request->getHeaderLine('x-requested-with')) === 'XMLHTTPREQUEST') {
+            return $this->json(['success' => $result->success, 'message' => $result->message]);
+        }
+        return $this->redirect($result->success ? '/' : '/auth/login');
+    }
+
+    public function signup(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        $post = (array) ($request->getParsedBody() ?? $_POST);
+        $email    = (string) ($post['email'] ?? '');
+        $password = (string) ($post['password'] ?? '');
+        $username = (string) ($post['username'] ?? '');
+        $result = $this->auth->verifySignup(
+            email: $email,
+            password: $password,
+            token: (string) ($post['_csrf'] ?? ''),
+            sessionToken: (string) ($_SESSION['csrf'] ?? ''),
+        );
+
+        if ($result->success) {
+            $user = $this->auth->createUser($username !== '' ? $username : $email, $email, $password);
+            session_regenerate_id();
+            $_SESSION['loggedin'] = true;
+            $_SESSION['userData'] = [
+                'id'       => $user->id,
+                'email'    => $user->email,
+                'username' => $user->username,
+                'roletype' => 'user',
+            ];
+        } else {
+            $_SESSION['message'] = $result->message;
+        }
+
+        if (strtoupper($request->getHeaderLine('x-requested-with')) === 'XMLHTTPREQUEST') {
+            return $this->json(['success' => $result->success, 'message' => $result->message]);
+        }
+        return $this->redirect($result->success ? '/' : '/auth/signup');
+    }
+
+    public function logout(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        $_SESSION = [];
+        return $this->redirect('/auth/login');
+    }
+
+    private function csrfToken(): string
+    {
+        $token = bin2hex(random_bytes(32));
+        $_SESSION['csrf'] = $token;
+        return $token;
+    }
+}
+```
+
+- [ ] **Step 8: Update `tests/Unit/Http/RouterTest.php`**
+
+The new Router is league/route-backed and needs a Container. Simplest test: assert that dispatching a known route returns a `ResponseInterface` with status 200 and that an unknown route throws `League\Route\Http\Exception\NotFoundException`. Wire a tiny test container with a stub controller that returns `new Response(200, [], 'hello')`. Aim for 3 focused tests; the granular regex behaviors are now league/route's responsibility.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Http;
+
+use App\Http\Router;
+use League\Container\Container;
+use League\Container\ReflectionContainer;
+use League\Route\Http\Exception\NotFoundException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
+use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class StubController
+{
+    public function hello(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        return new Response(200, [], 'hello ' . ($args['name'] ?? 'world'));
+    }
+}
+
+final class RouterTest extends TestCase
+{
+    private function router(): Router
+    {
+        $c = new Container();
+        $c->delegate(new ReflectionContainer(cacheResolutions: true));
+        return new Router([
+            'GET' => ['/' => [StubController::class, 'hello'], 'hello/{name}' => [StubController::class, 'hello']],
+        ], $c);
+    }
+
+    private function request(string $method, string $uri): ServerRequestInterface
+    {
+        return (new Psr17Factory())->createServerRequest($method, $uri);
+    }
+
+    public function testExactRouteReturnsHandlerResponse(): void
+    {
+        $response = $this->router()->handle($this->request('GET', '/'));
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('hello world', (string) $response->getBody());
+    }
+
+    public function testParameterizedRouteExtractsArg(): void
+    {
+        $response = $this->router()->handle($this->request('GET', '/hello/anna'));
+        self::assertSame('hello anna', (string) $response->getBody());
+    }
+
+    public function testUnknownRouteThrows(): void
+    {
+        $this->expectException(NotFoundException::class);
+        $this->router()->handle($this->request('GET', '/nope'));
+    }
+}
+```
+
+- [ ] **Step 9: Smoke check**
+
+```bash
+composer install
+php -l src/Kernel.php src/Http/Router.php src/Controllers/BaseController.php src/Controllers/PostController.php src/Controllers/AuthController.php
+vendor/bin/phpunit --no-configuration tests/Unit/Http/RouterTest.php
+```
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add composer.json composer.lock src/Http/ src/Kernel.php src/Controllers/ tests/Unit/Http/RouterTest.php
+git commit -m "http: swap hand-rolled Router + Request/Response for PSR-7/15 (league/route + nyholm/psr7)
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+- [ ] **Step A — Tag**: `git tag lesson-1-15`
+- [ ] **Step B — Lesson**: at `../phpblog-udemy/01-foundation/01-15-psr7-15-upgrade.md` per template. The "why" MUST cover: why PSRs exist (interop), what PSR-7/15/17 each specify, why we DIDN'T start with PSR-7 (pedagogy of the from-scratch lessons), the cost/benefit of league/route over fast-route, and the middleware door this opens (which we won't use here but the architecture now supports).
+- [ ] **Step C — Lesson commit**: per the Course companion section above.
+
+---
+
 ## Phase 2 — Quality gates
 
 ### Task 2.1: PHP_CodeSniffer config + first-pass clean
