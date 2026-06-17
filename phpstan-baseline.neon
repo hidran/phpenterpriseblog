@@ -25,12 +25,6 @@ parameters:
 			path: src/Repositories/PostRepository.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Support/Env.php
-
-		-
 			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''PDO'' and PDO will always evaluate to true\.$#'
 			identifier: staticMethod.alreadyNarrowedType
 			count: 1

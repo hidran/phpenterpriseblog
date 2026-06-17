@@ -26,10 +26,10 @@ final class ConnectionFactory
             $database,
         );
 
-        return (new PdoConnection([
+        return new PdoConnection([
             'dsn'      => $dsn,
             'user'     => $user,
             'password' => $password,
-        ]))->pdo();
+        ])->pdo();
     }
 }

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-final class Comment
+final readonly class Comment
 {
     public function __construct(
-        public readonly int $id,
-        public readonly int $postId,
-        public readonly ?int $userId,
-        public readonly string $comment,
-        public readonly string $email,
-        public readonly string $datecreated,
+        public int $id,
+        public int $postId,
+        public ?int $userId,
+        public string $comment,
+        public string $email,
+        public string $datecreated,
     ) {
     }
 

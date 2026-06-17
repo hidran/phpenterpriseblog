@@ -25,7 +25,7 @@ final class RouterTest extends TestCase
 
     private function request(string $method, string $uri): ServerRequestInterface
     {
-        return (new Psr17Factory())->createServerRequest($method, $uri);
+        return new Psr17Factory()->createServerRequest($method, $uri);
     }
 
     public function testExactRouteReturnsHandlerResponse(): void

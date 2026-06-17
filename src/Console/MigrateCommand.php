@@ -7,11 +7,11 @@ namespace App\Console;
 use PDO;
 use RuntimeException;
 
-final class MigrateCommand
+final readonly class MigrateCommand
 {
     public function __construct(
-        private readonly PDO $pdo,
-        private readonly string $migrationsDir,
+        private PDO $pdo,
+        private string $migrationsDir,
     ) {
     }
 
@@ -28,7 +28,7 @@ final class MigrateCommand
         $applied = $this->appliedSet();
         $files   = $this->files();
 
-        $pending = array_filter($files, static fn (string $f) => !isset($applied[basename($f)]));
+        $pending = array_filter($files, static fn (string $f): bool => !isset($applied[basename($f)]));
         if ($pending === []) {
             fwrite(STDOUT, "No pending migrations.\n");
             return 0;

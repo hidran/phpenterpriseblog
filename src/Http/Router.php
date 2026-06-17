@@ -10,9 +10,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-final class Router implements RequestHandlerInterface
+final readonly class Router implements RequestHandlerInterface
 {
-    private readonly LeagueRouter $router;
+    private LeagueRouter $router;
 
     /**
      * @param array<string, array<string, array{0: class-string, 1: string}>> $routes
@@ -21,14 +21,14 @@ final class Router implements RequestHandlerInterface
     {
         $this->router = new LeagueRouter();
         $this->router->setStrategy(
-            (new \League\Route\Strategy\ApplicationStrategy())
+            new \League\Route\Strategy\ApplicationStrategy()
                 ->setContainer($container)
         );
 
         foreach ($routes as $method => $table) {
             foreach ($table as $path => [$class, $action]) {
                 $normalized = $path === '/' ? '/' : '/' . ltrim($path, '/');
-                $normalized = preg_replace('/:([A-Za-z_][A-Za-z0-9_]*)/', '{$1}', $normalized);
+                $normalized = preg_replace('/:([A-Za-z_]\w*)/', '{$1}', $normalized);
                 if ($normalized === null) {
                     throw new \RuntimeException("Route placeholder rewrite failed for path: {$path}");
                 }

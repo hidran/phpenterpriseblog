@@ -6,9 +6,9 @@ namespace App\Database;
 
 use PDO;
 
-final class PdoConnection
+final readonly class PdoConnection
 {
-    private readonly PDO $pdo;
+    private PDO $pdo;
 
     /**
      * @param array{dsn: string, user: string, password: string, options?: array<int, int>} $options

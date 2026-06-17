@@ -22,9 +22,9 @@ use PDO;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class Kernel
+final readonly class Kernel
 {
-    public function __construct(private readonly string $basePath)
+    public function __construct(private string $basePath)
     {
     }
 
@@ -39,11 +39,11 @@ final class Kernel
         try {
             $response = $container->get(Router::class)->handle($request);
         } catch (NotFoundException) {
-            $response = (new Psr17Factory())->createResponse(404)
+            $response = new Psr17Factory()->createResponse(404)
                 ->withHeader('Content-Type', 'text/html; charset=utf-8');
             $response->getBody()->write('<h1>404 Not Found</h1>');
         } catch (MethodNotAllowedException $e) {
-            $response = (new Psr17Factory())->createResponse(405)
+            $response = new Psr17Factory()->createResponse(405)
                 ->withHeader('Content-Type', 'text/html; charset=utf-8')
                 ->withHeader('Allow', implode(', ', $e->getAllowedMethods()));
             $response->getBody()->write('<h1>405 Method Not Allowed</h1>');
@@ -66,7 +66,7 @@ final class Kernel
         $container->delegate(new ReflectionContainer(cacheResolutions: true));
 
         $container->addShared(PDO::class, ConnectionFactory::fromEnv(...));
-        $container->addShared(View::class, fn () => new View($this->basePath . '/resources/views'));
+        $container->addShared(View::class, fn (): \App\Support\View => new View($this->basePath . '/resources/views'));
 
         $container->add(PostRepository::class)->addArgument(PDO::class);
         $container->add(UserRepository::class)->addArgument(PDO::class);
@@ -74,7 +74,7 @@ final class Kernel
         $container->add(AuthService::class)->addArgument(UserRepository::class);
 
         $routes = require $this->basePath . '/config/routes.php';
-        $container->addShared(Router::class, fn () => new Router($routes, $container));
+        $container->addShared(Router::class, fn (): \App\Http\Router => new Router($routes, $container));
 
         return $container;
     }
@@ -82,7 +82,7 @@ final class Kernel
     private function buildRequest(): ServerRequestInterface
     {
         $factory = new Psr17Factory();
-        return (new ServerRequestCreator($factory, $factory, $factory, $factory))
+        return new ServerRequestCreator($factory, $factory, $factory, $factory)
             ->fromGlobals();
     }
 
@@ -90,7 +90,7 @@ final class Kernel
     {
         http_response_code($response->getStatusCode());
         foreach ($response->getHeaders() as $name => $values) {
-            $replace = strcasecmp($name, 'Set-Cookie') !== 0;
+            $replace = strcasecmp((string) $name, 'Set-Cookie') !== 0;
             foreach ($values as $value) {
                 header($name . ': ' . $value, $replace);
                 $replace = false; // subsequent values for the same header name must append

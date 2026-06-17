@@ -53,7 +53,7 @@ final class AuthController extends BaseController
             sessionToken: (string) ($_SESSION['csrf'] ?? ''),
         );
 
-        if ($result->success && $result->user !== null) {
+        if ($result->success && $result->user instanceof \App\Models\User) {
             session_regenerate_id();
             $_SESSION['loggedin'] = true;
             $_SESSION['userData'] = [

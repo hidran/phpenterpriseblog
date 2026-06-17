@@ -11,7 +11,7 @@ final class Env
     public static function string(string $key, ?string $default = null): string
     {
         $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
-        if ($value === false || $value === null || $value === '') {
+        if (in_array($value, [false, null, ''], true)) {
             if ($default === null) {
                 throw new RuntimeException("Missing required env var: {$key}");
             }

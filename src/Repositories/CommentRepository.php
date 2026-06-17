@@ -7,9 +7,9 @@ namespace App\Repositories;
 use App\Models\Comment;
 use PDO;
 
-final class CommentRepository
+final readonly class CommentRepository
 {
-    public function __construct(private readonly PDO $pdo)
+    public function __construct(private PDO $pdo)
     {
     }
 

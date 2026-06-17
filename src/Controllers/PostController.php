@@ -34,7 +34,7 @@ final class PostController extends BaseController
     public function show(ServerRequestInterface $request, array $args = []): ResponseInterface
     {
         $post = $this->posts->findById((int) ($args['id'] ?? 0));
-        if ($post === null) {
+        if (!$post instanceof \App\Models\Post) {
             return $this->respond($this->view->render('pages/errors/404'), 404);
         }
         return $this->respond($this->view->render('pages/posts/show', [
@@ -63,7 +63,7 @@ final class PostController extends BaseController
             return $this->redirect('/auth/login');
         }
         $post = $this->posts->findById((int) ($args['id'] ?? 0));
-        if ($post === null) {
+        if (!$post instanceof \App\Models\Post) {
             return $this->redirect('/');
         }
         return $this->respond($this->view->render('pages/posts/edit', ['post' => $post]));

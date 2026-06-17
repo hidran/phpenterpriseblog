@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-final class User
+final readonly class User
 {
     public function __construct(
-        public readonly int $id,
-        public readonly string $username,
-        public readonly string $email,
-        public readonly string $password,
-        public readonly string $roletype,
+        public int $id,
+        public string $username,
+        public string $email,
+        public string $password,
+        public string $roletype,
     ) {
     }
 

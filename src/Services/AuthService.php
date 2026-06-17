@@ -7,9 +7,9 @@ namespace App\Services;
 use App\Models\User;
 use App\Repositories\UserRepository;
 
-final class AuthService
+final readonly class AuthService
 {
-    public function __construct(private readonly UserRepository $users)
+    public function __construct(private UserRepository $users)
     {
     }
 
@@ -26,7 +26,7 @@ final class AuthService
             return AuthResult::failure('PASSWORD TOO SHORT');
         }
         $user = $this->users->findByEmail($email);
-        if ($user === null) {
+        if (!$user instanceof \App\Models\User) {
             return AuthResult::failure('USER NOT FOUND');
         }
         if (!password_verify($password, $user->password)) {
@@ -47,7 +47,7 @@ final class AuthService
         if (strlen($password) < 6) {
             return AuthResult::failure('PASSWORD TOO SHORT');
         }
-        if ($this->users->findByEmail($email) !== null) {
+        if ($this->users->findByEmail($email) instanceof \App\Models\User) {
             return AuthResult::failure('USER ALREADY EXISTS');
         }
         return AuthResult::success('SIGNUP OK');

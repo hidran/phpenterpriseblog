@@ -6,9 +6,9 @@ namespace App\Support;
 
 use RuntimeException;
 
-final class View
+final readonly class View
 {
-    public function __construct(private readonly string $viewsDir)
+    public function __construct(private string $viewsDir)
     {
     }
 
