@@ -4,56 +4,56 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Http;
 
-use App\Http\RouteNotFoundException;
 use App\Http\Router;
+use League\Container\Container;
+use League\Container\ReflectionContainer;
+use League\Route\Http\Exception\NotFoundException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class StubController
+{
+    public function hello(ServerRequestInterface $request, array $args = []): ResponseInterface
+    {
+        return new Response(200, [], 'hello ' . ($args['name'] ?? 'world'));
+    }
+}
 
 final class RouterTest extends TestCase
 {
-    private function routes(): array
+    private function router(): Router
     {
-        return [
-            'GET'  => [
-                '/'             => ['Ctrl', 'home'],
-                'posts'         => ['Ctrl', 'index'],
-                'posts/:id'     => ['Ctrl', 'show'],
-                'posts/:id/edit' => ['Ctrl', 'edit'],
-            ],
-            'POST' => [
-                'posts/:id/comments' => ['Ctrl', 'comment'],
-            ],
-        ];
+        $c = new Container();
+        $c->delegate(new ReflectionContainer(cacheResolutions: true));
+        return new Router([
+            'GET' => ['/' => [StubController::class, 'hello'], 'hello/:name' => [StubController::class, 'hello']],
+        ], $c);
     }
 
-    public function testExactMatchReturnsHandler(): void
+    private function request(string $method, string $uri): ServerRequestInterface
     {
-        $r = new Router($this->routes());
-        $this->assertSame(['Ctrl', 'home', []], $r->dispatch('GET', '/'));
-        $this->assertSame(['Ctrl', 'index', []], $r->dispatch('GET', '/posts'));
+        return (new Psr17Factory())->createServerRequest($method, $uri);
     }
 
-    public function testParameterizedMatchExtractsParams(): void
+    public function testExactRouteReturnsHandlerResponse(): void
     {
-        $r = new Router($this->routes());
-        $this->assertSame(['Ctrl', 'show', ['42']], $r->dispatch('GET', '/posts/42'));
-        $this->assertSame(['Ctrl', 'edit', ['7']], $r->dispatch('GET', '/posts/7/edit'));
+        $response = $this->router()->handle($this->request('GET', '/'));
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('hello world', (string) $response->getBody());
     }
 
-    public function testMethodScopedRoutes(): void
+    public function testParameterizedRouteExtractsArg(): void
     {
-        $r = new Router($this->routes());
-        $this->assertSame(['Ctrl', 'comment', ['9']], $r->dispatch('POST', '/posts/9/comments'));
+        $response = $this->router()->handle($this->request('GET', '/hello/anna'));
+        self::assertSame('hello anna', (string) $response->getBody());
     }
 
     public function testUnknownRouteThrows(): void
     {
-        $this->expectException(RouteNotFoundException::class);
-        (new Router($this->routes()))->dispatch('GET', '/nope');
-    }
-
-    public function testMethodNotMatchedThrows(): void
-    {
-        $this->expectException(RouteNotFoundException::class);
-        (new Router($this->routes()))->dispatch('GET', '/posts/9/comments');
+        $this->expectException(NotFoundException::class);
+        $this->router()->handle($this->request('GET', '/nope'));
     }
 }

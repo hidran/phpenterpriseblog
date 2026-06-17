@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Controllers\BaseController;
 use App\Database\ConnectionFactory;
-use App\Http\Request;
-use App\Http\Response;
-use App\Http\RouteNotFoundException;
 use App\Http\Router;
 use App\Repositories\CommentRepository;
 use App\Repositories\PostRepository;
@@ -18,8 +14,12 @@ use App\Support\View;
 use Dotenv\Dotenv;
 use League\Container\Container;
 use League\Container\ReflectionContainer;
+use League\Route\Http\Exception\NotFoundException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7Server\ServerRequestCreator;
 use PDO;
-use Throwable;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 final class Kernel
 {
@@ -33,26 +33,17 @@ final class Kernel
         session_start();
 
         $container = $this->buildContainer();
-        $request   = $container->get(Request::class);
-
-        $routes = require $this->basePath . '/config/routes.php';
-        $router = new Router($routes);
+        $request   = $this->buildRequest();
 
         try {
-            [$class, $method, $params] = $router->dispatch($request->method, $request->uri);
-        } catch (RouteNotFoundException $e) {
-            http_response_code(404);
-            echo 'Not found';
-            return;
+            $response = $container->get(Router::class)->handle($request);
+        } catch (NotFoundException) {
+            $response = (new Psr17Factory())->createResponse(404)
+                ->withHeader('Content-Type', 'text/html; charset=utf-8');
+            $response->getBody()->write('<h1>404 Not Found</h1>');
         }
 
-        /** @var object $controller */
-        $controller = $container->get($class);
-        $controller->$method(...$params);
-
-        if ($controller instanceof BaseController) {
-            $controller->display();
-        }
+        $this->emit($response);
     }
 
     private function loadEnv(): void
@@ -69,7 +60,6 @@ final class Kernel
         $container->delegate(new ReflectionContainer(cacheResolutions: true));
 
         $container->addShared(PDO::class, ConnectionFactory::fromEnv(...));
-        $container->addShared(Request::class, Request::fromGlobals(...));
         $container->addShared(View::class, fn() => new View($this->basePath . '/resources/views'));
 
         $container->add(PostRepository::class)->addArgument(PDO::class);
@@ -77,6 +67,27 @@ final class Kernel
         $container->add(CommentRepository::class)->addArgument(PDO::class);
         $container->add(AuthService::class)->addArgument(UserRepository::class);
 
+        $routes = require $this->basePath . '/config/routes.php';
+        $container->addShared(Router::class, fn() => new Router($routes, $container));
+
         return $container;
+    }
+
+    private function buildRequest(): ServerRequestInterface
+    {
+        $factory = new Psr17Factory();
+        return (new ServerRequestCreator($factory, $factory, $factory, $factory))
+            ->fromGlobals();
+    }
+
+    private function emit(ResponseInterface $response): void
+    {
+        http_response_code($response->getStatusCode());
+        foreach ($response->getHeaders() as $name => $values) {
+            foreach ($values as $value) {
+                header($name . ': ' . $value, false);
+            }
+        }
+        echo $response->getBody();
     }
 }
