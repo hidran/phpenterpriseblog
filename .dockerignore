@@ -1,0 +1,10 @@
+.git
+.idea
+node_modules
+vendor
+tests
+docs
+.env
+.env.*
+*.md
+freeblog.sql
