@@ -1,4 +1,4 @@
-# phpinterpriseblog
+# phpenterpriseblog
 
 PHP 8.5 enterprise-grade remake of the Udemy `freeblog` course project.
 

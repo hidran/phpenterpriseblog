@@ -1,23 +1,23 @@
-# PHP 8.5 Modernization Implementation Plan — `phpinterpriseblog`
+# PHP 8.5 Modernization Implementation Plan — `phpenterpriseblog`
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `phpinterpriseblog` — a PHP 8.5, enterprise-shaped remake of the `freeblog` Udemy MVC blog — with Composer/PSR-4, src-layout, Models+Repositories+Services, Redis cache & sessions, Docker, PHPStan/PHPCS/PHPUnit/Playwright CI, and EKS deploy via Helm + GitHub Actions OIDC.
+**Goal:** Build `phpenterpriseblog` — a PHP 8.5, enterprise-shaped remake of the `freeblog` Udemy MVC blog — with Composer/PSR-4, src-layout, Models+Repositories+Services, Redis cache & sessions, Docker, PHPStan/PHPCS/PHPUnit/Playwright CI, and EKS deploy via Helm + GitHub Actions OIDC.
 
 **Architecture:** Single `src/` namespace root with `App\`. Thin Controllers + Services + Repositories pattern. Kernel-driven boot via PSR-11 container. Production Docker image (PHP 8.5-fpm-alpine + nginx). Two-environment EKS promotion (staging → manual approval → prod) with atomic Helm releases.
 
 **Tech Stack:** PHP 8.4/8.5, Composer (PSR-4), vlucas/phpdotenv, league/container, symfony/cache (Redis adapter), monolog, PHPUnit 11, PHPStan 2, PHP_CodeSniffer 3 + Slevomat, Rector 2, Playwright (TS), Docker, nginx, MySQL 8.4, Redis 7, Helm 3, EKS ≥ 1.30, GitHub Actions.
 
-**Source reference:** `/Users/hidranarias/projects/udemy/freeblog` is the original Udemy project. Workers may read it for behavioral reference but every file ends up newly created under `/Users/hidranarias/projects/udemy/phpinterpriseblog/`.
+**Source reference:** `/Users/hidranarias/projects/udemy/freeblog` is the original Udemy project. Workers may read it for behavioral reference but every file ends up newly created under `/Users/hidranarias/projects/udemy/phpenterpriseblog/`.
 
-**Working directory for ALL tasks:** `/Users/hidranarias/projects/udemy/phpinterpriseblog/`.
+**Working directory for ALL tasks:** `/Users/hidranarias/projects/udemy/phpenterpriseblog/`.
 
 ## Global Constraints
 
 - **PHP floor:** `php: ^8.4` in `composer.json`. CI matrix runs 8.4 AND 8.5; both must pass.
 - **Namespace root:** PSR-4 — `App\` → `src/`. Helpers via Composer `files` autoload.
 - **No long-lived AWS keys.** All AWS auth from CI uses GitHub OIDC.
-- **No `freeblog` references** in the new project except as historical/reference notes. Names: ECR repo `phpinterpriseblog`, IAM roles `phpinterpriseblog-{ci-ecr,cd-eks}`, K8s namespaces `phpinterpriseblog-{staging,prod}`, Helm release `phpinterpriseblog`, Secrets Manager prefix `phpinterpriseblog/{env}/`.
+- **No `freeblog` references** in the new project except as historical/reference notes. Names: ECR repo `phpenterpriseblog`, IAM roles `phpenterpriseblog-{ci-ecr,cd-eks}`, K8s namespaces `phpenterpriseblog-{staging,prod}`, Helm release `phpenterpriseblog`, Secrets Manager prefix `phpenterpriseblog/{env}/`.
 - **Schema renames are one-shot in migration `0001`:** `postscomments` → `post_comments`; charset `utf8mb4`; all column types preserved otherwise.
 - **Behavior preservation:** the legacy URL surface (`/`, `/posts`, `/posts/{id}`, `/posts/create`, `/posts/{id}/edit`, `/posts/{id}/comments`, `/auth/login`, `/auth/signup`, `/auth/logout`) must continue to work end-to-end.
 - **PHPStan starts at level 6.** Ratchets to level 8 only in Phase 8. Baseline must not grow within a PR.
@@ -61,7 +61,7 @@ Expected: `v20.x` or higher.
 - [ ] **Step 5: Verify in correct repo**
 
 Run: `pwd && git log --oneline -1`
-Expected: `/Users/hidranarias/projects/udemy/phpinterpriseblog` and the root-commit containing the design spec.
+Expected: `/Users/hidranarias/projects/udemy/phpenterpriseblog` and the root-commit containing the design spec.
 
 No commit for Task 0.1 — read-only.
 
@@ -83,7 +83,7 @@ No commit for Task 0.1 — read-only.
 
 ```json
 {
-  "name": "hidran/phpinterpriseblog",
+  "name": "hidran/phpenterpriseblog",
   "description": "PHP 8.5 enterprise-shaped remake of the freeblog Udemy MVC project.",
   "type": "project",
   "license": "MIT",
@@ -189,7 +189,7 @@ APP_KEY=change-me-32-bytes-base64
 DB_DRIVER=mysql
 DB_HOST=mysql
 DB_PORT=3306
-DB_DATABASE=phpinterpriseblog
+DB_DATABASE=phpenterpriseblog
 DB_USERNAME=root
 DB_PASSWORD=root
 
@@ -1968,7 +1968,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ```xml
 <?xml version="1.0"?>
-<ruleset name="phpinterpriseblog">
+<ruleset name="phpenterpriseblog">
     <description>PSR-12 + Slevomat strict typing</description>
     <file>src</file>
     <file>bin</file>
@@ -2651,8 +2651,8 @@ server {
 
 - [ ] **Step 7: Verify image builds**
 
-Run: `docker build -t phpinterpriseblog:dev -f deploy/docker/Dockerfile .`
-Expected: image builds. Confirm: `docker images phpinterpriseblog:dev`.
+Run: `docker build -t phpenterpriseblog:dev -f deploy/docker/Dockerfile .`
+Expected: image builds. Confirm: `docker images phpenterpriseblog:dev`.
 
 - [ ] **Step 8: Commit**
 
@@ -2687,7 +2687,7 @@ services:
       APP_DEBUG: "true"
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_DATABASE: phpinterpriseblog
+      DB_DATABASE: phpenterpriseblog
       DB_USERNAME: root
       DB_PASSWORD: root
       REDIS_HOST: redis
@@ -2711,7 +2711,7 @@ services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_DATABASE: phpinterpriseblog
+      MYSQL_DATABASE: phpenterpriseblog
       MYSQL_ROOT_PASSWORD: root
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-uroot", "-proot"]
@@ -3477,7 +3477,7 @@ jobs:
       mysql:
         image: mysql:8.4
         env:
-          MYSQL_DATABASE: phpinterpriseblog
+          MYSQL_DATABASE: phpenterpriseblog
           MYSQL_ROOT_PASSWORD: root
         ports: ["3306:3306"]
         options: >-
@@ -3492,7 +3492,7 @@ jobs:
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
-      DB_DATABASE: phpinterpriseblog
+      DB_DATABASE: phpenterpriseblog
       DB_USERNAME: root
       DB_PASSWORD: root
       REDIS_HOST: 127.0.0.1
@@ -3564,7 +3564,7 @@ These resources are set up **once** outside of CI. Steps assume `aws` CLI is con
 
 ## 1. ECR repository
 \`\`\`bash
-aws ecr create-repository --repository-name phpinterpriseblog --image-scanning-configuration scanOnPush=true
+aws ecr create-repository --repository-name phpenterpriseblog --image-scanning-configuration scanOnPush=true
 \`\`\`
 
 ## 2. GitHub OIDC provider
@@ -3578,29 +3578,29 @@ aws iam create-open-id-connect-provider \\
 
 ## 3. IAM roles (OIDC-assumable)
 
-### `phpinterpriseblog-ci-ecr`
-Trust policy restricts to `repo:<OWNER>/phpinterpriseblog:ref:refs/heads/main` and `repo:<OWNER>/phpinterpriseblog:ref:refs/tags/v*`.
-Permissions: `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:PutImage`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, scoped to the `phpinterpriseblog` repository ARN only.
+### `phpenterpriseblog-ci-ecr`
+Trust policy restricts to `repo:<OWNER>/phpenterpriseblog:ref:refs/heads/main` and `repo:<OWNER>/phpenterpriseblog:ref:refs/tags/v*`.
+Permissions: `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, `ecr:PutImage`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, scoped to the `phpenterpriseblog` repository ARN only.
 
-### `phpinterpriseblog-cd-eks`
-Trust policy restricts to `repo:<OWNER>/phpinterpriseblog:ref:refs/tags/v*`.
-Permissions: `eks:DescribeCluster`, `secretsmanager:GetSecretValue` on `arn:aws:secretsmanager:*:*:secret:phpinterpriseblog/*`.
+### `phpenterpriseblog-cd-eks`
+Trust policy restricts to `repo:<OWNER>/phpenterpriseblog:ref:refs/tags/v*`.
+Permissions: `eks:DescribeCluster`, `secretsmanager:GetSecretValue` on `arn:aws:secretsmanager:*:*:secret:phpenterpriseblog/*`.
 
 ## 4. EKS cluster
 Any EKS ≥ 1.30 cluster. Create namespaces:
 \`\`\`bash
-kubectl create namespace phpinterpriseblog-staging
-kubectl create namespace phpinterpriseblog-prod
+kubectl create namespace phpenterpriseblog-staging
+kubectl create namespace phpenterpriseblog-prod
 \`\`\`
 
 ## 5. RDS MySQL 8
 One instance per environment. Store credentials in AWS Secrets Manager:
-- `phpinterpriseblog/staging/db` → JSON: `{ "DB_HOST", "DB_PORT", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD" }`
-- `phpinterpriseblog/prod/db`
+- `phpenterpriseblog/staging/db` → JSON: `{ "DB_HOST", "DB_PORT", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD" }`
+- `phpenterpriseblog/prod/db`
 
 ## 6. ElastiCache Redis (TLS)
 One cluster per env. Secret:
-- `phpinterpriseblog/{env}/redis` → JSON: `{ "REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD" }`
+- `phpenterpriseblog/{env}/redis` → JSON: `{ "REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD" }`
 
 ## 7. Cluster add-ons
 - AWS Load Balancer Controller
@@ -3634,17 +3634,17 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ### Task 7.2: Helm chart skeleton + values
 
 **Files:**
-- Create: `deploy/helm/phpinterpriseblog/Chart.yaml`
-- Create: `deploy/helm/phpinterpriseblog/values.yaml`
-- Create: `deploy/helm/phpinterpriseblog/values.staging.yaml`
-- Create: `deploy/helm/phpinterpriseblog/values.prod.yaml`
-- Create: `deploy/helm/phpinterpriseblog/.helmignore`
+- Create: `deploy/helm/phpenterpriseblog/Chart.yaml`
+- Create: `deploy/helm/phpenterpriseblog/values.yaml`
+- Create: `deploy/helm/phpenterpriseblog/values.staging.yaml`
+- Create: `deploy/helm/phpenterpriseblog/values.prod.yaml`
+- Create: `deploy/helm/phpenterpriseblog/.helmignore`
 
 - [ ] **Step 1: Write `Chart.yaml`**
 
 ```yaml
 apiVersion: v2
-name: phpinterpriseblog
+name: phpenterpriseblog
 description: PHP 8.5 enterprise-shaped blog
 type: application
 version: 0.1.0
@@ -3704,10 +3704,10 @@ externalSecrets:
     kind: ClusterSecretStore
     name: aws-secretsmanager
   secrets:
-    - name: phpinterpriseblog-db
-      remoteRef: phpinterpriseblog/staging/db
-    - name: phpinterpriseblog-redis
-      remoteRef: phpinterpriseblog/staging/redis
+    - name: phpenterpriseblog-db
+      remoteRef: phpenterpriseblog/staging/db
+    - name: phpenterpriseblog-redis
+      remoteRef: phpenterpriseblog/staging/redis
 
 env:
   APP_ENV: production
@@ -3730,7 +3730,7 @@ containerSecurityContext:
 
 serviceAccount:
   create: true
-  name: phpinterpriseblog
+  name: phpenterpriseblog
   annotations: {}   # set IRSA role ARN at install time via values.<env>.yaml
 ```
 
@@ -3738,39 +3738,39 @@ serviceAccount:
 
 ```yaml
 image:
-  repository: "${ECR_REGISTRY}/phpinterpriseblog"  # overridden by --set in CI
+  repository: "${ECR_REGISTRY}/phpenterpriseblog"  # overridden by --set in CI
 env:
   APP_ENV: staging
 ingress:
   hosts:
-    - { host: staging.phpinterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
+    - { host: staging.phpenterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
 externalSecrets:
   secrets:
-    - { name: phpinterpriseblog-db,    remoteRef: phpinterpriseblog/staging/db }
-    - { name: phpinterpriseblog-redis, remoteRef: phpinterpriseblog/staging/redis }
+    - { name: phpenterpriseblog-db,    remoteRef: phpenterpriseblog/staging/db }
+    - { name: phpenterpriseblog-redis, remoteRef: phpenterpriseblog/staging/redis }
 ```
 
 - [ ] **Step 4: Write `values.prod.yaml`**
 
 ```yaml
 image:
-  repository: "${ECR_REGISTRY}/phpinterpriseblog"
+  repository: "${ECR_REGISTRY}/phpenterpriseblog"
 env:
   APP_ENV: production
 ingress:
   hosts:
-    - { host: phpinterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
+    - { host: phpenterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
 externalSecrets:
   secrets:
-    - { name: phpinterpriseblog-db,    remoteRef: phpinterpriseblog/prod/db }
-    - { name: phpinterpriseblog-redis, remoteRef: phpinterpriseblog/prod/redis }
+    - { name: phpenterpriseblog-db,    remoteRef: phpenterpriseblog/prod/db }
+    - { name: phpenterpriseblog-redis, remoteRef: phpenterpriseblog/prod/redis }
 hpa: { minReplicas: 3, maxReplicas: 20 }
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add deploy/helm/phpinterpriseblog/Chart.yaml deploy/helm/phpinterpriseblog/values*.yaml
+git add deploy/helm/phpenterpriseblog/Chart.yaml deploy/helm/phpenterpriseblog/values*.yaml
 git commit -m "helm: add chart skeleton and per-env values
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -3781,17 +3781,17 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ### Task 7.3: Helm templates — workload
 
 **Files:**
-- Create: `deploy/helm/phpinterpriseblog/templates/_helpers.tpl`
-- Create: `deploy/helm/phpinterpriseblog/templates/serviceaccount.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/deployment.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/service.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/ingress.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/configmap-nginx.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/_helpers.tpl`
+- Create: `deploy/helm/phpenterpriseblog/templates/serviceaccount.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/deployment.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/service.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/ingress.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/configmap-nginx.yaml`
 
 - [ ] **Step 1: Write `_helpers.tpl`**
 
 ```yaml
-{{- define "fb.name" -}}phpinterpriseblog{{- end -}}
+{{- define "fb.name" -}}phpenterpriseblog{{- end -}}
 {{- define "fb.labels" -}}
 app.kubernetes.io/name: {{ include "fb.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
@@ -3825,7 +3825,7 @@ data:
 {{ .Files.Get "files/nginx.conf" | indent 4 }}
 ```
 
-Add the file at `deploy/helm/phpinterpriseblog/files/nginx.conf` — a copy of `deploy/docker/nginx.conf` but with `fastcgi_pass 127.0.0.1:9000;` (single-pod, two-container).
+Add the file at `deploy/helm/phpenterpriseblog/files/nginx.conf` — a copy of `deploy/docker/nginx.conf` but with `fastcgi_pass 127.0.0.1:9000;` (single-pod, two-container).
 
 - [ ] **Step 4: Write `deployment.yaml`**
 
@@ -3857,8 +3857,8 @@ spec:
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports: [ { name: fpm, containerPort: 9000 } ]
           envFrom:
-            - secretRef: { name: phpinterpriseblog-db }
-            - secretRef: { name: phpinterpriseblog-redis }
+            - secretRef: { name: phpenterpriseblog-db }
+            - secretRef: { name: phpenterpriseblog-redis }
           env:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: "{{ $v }}" }
@@ -3921,13 +3921,13 @@ spec:
 
 - [ ] **Step 7: Render dry-run**
 
-Run: `helm template phpinterpriseblog deploy/helm/phpinterpriseblog -f deploy/helm/phpinterpriseblog/values.staging.yaml --set image.tag=v0.1.0 --set image.repository=stub/phpinterpriseblog | head -80`
+Run: `helm template phpenterpriseblog deploy/helm/phpenterpriseblog -f deploy/helm/phpenterpriseblog/values.staging.yaml --set image.tag=v0.1.0 --set image.repository=stub/phpenterpriseblog | head -80`
 Expected: valid YAML rendered.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add deploy/helm/phpinterpriseblog/
+git add deploy/helm/phpenterpriseblog/
 git commit -m "helm: deployment + service + ingress + nginx configmap + SA
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -3938,12 +3938,12 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ### Task 7.4: Helm templates — HPA, PDB, ExternalSecret, Job, NetworkPolicy
 
 **Files:**
-- Create: `deploy/helm/phpinterpriseblog/templates/hpa.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/pdb.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/externalsecret.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/job-migrate.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/networkpolicy.yaml`
-- Create: `deploy/helm/phpinterpriseblog/templates/tests/test-healthz.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/hpa.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/pdb.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/externalsecret.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/job-migrate.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/networkpolicy.yaml`
+- Create: `deploy/helm/phpenterpriseblog/templates/tests/test-healthz.yaml`
 
 - [ ] **Step 1: Write `hpa.yaml`**
 
@@ -4024,7 +4024,7 @@ spec:
           command: ["php", "bin/console", "migrate"]
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           envFrom:
-            - secretRef: { name: phpinterpriseblog-db }
+            - secretRef: { name: phpenterpriseblog-db }
           env:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: "{{ $v }}" }
@@ -4067,13 +4067,13 @@ spec:
 
 - [ ] **Step 7: Lint + render**
 
-Run: `helm lint deploy/helm/phpinterpriseblog && helm template deploy/helm/phpinterpriseblog -f deploy/helm/phpinterpriseblog/values.prod.yaml --set image.tag=v0.1.0 --set image.repository=stub > /tmp/render.yaml && wc -l /tmp/render.yaml`
+Run: `helm lint deploy/helm/phpenterpriseblog && helm template deploy/helm/phpenterpriseblog -f deploy/helm/phpenterpriseblog/values.prod.yaml --set image.tag=v0.1.0 --set image.repository=stub > /tmp/render.yaml && wc -l /tmp/render.yaml`
 Expected: `helm lint` clean; render produces non-empty multi-doc YAML.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add deploy/helm/phpinterpriseblog/templates/
+git add deploy/helm/phpenterpriseblog/templates/
 git commit -m "helm: HPA, PDB, ExternalSecret, migrate Job, NetworkPolicy, helm-test
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -4109,7 +4109,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpinterpriseblog-ci-ecr
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpenterpriseblog-ci-ecr
           aws-region: ${{ vars.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@v2
       - uses: docker/build-push-action@v6
@@ -4119,8 +4119,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ vars.ECR_REGISTRY }}/phpinterpriseblog:${{ github.ref_name }}
-            ${{ vars.ECR_REGISTRY }}/phpinterpriseblog:sha-${{ github.sha }}
+            ${{ vars.ECR_REGISTRY }}/phpenterpriseblog:${{ github.ref_name }}
+            ${{ vars.ECR_REGISTRY }}/phpenterpriseblog:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true
@@ -4134,15 +4134,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpinterpriseblog-cd-eks
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpenterpriseblog-cd-eks
           aws-region: ${{ vars.AWS_REGION }}
       - run: aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER }}
       - uses: azure/setup-helm@v4
       - run: |
-          helm upgrade --install phpinterpriseblog deploy/helm/phpinterpriseblog \
-            --namespace phpinterpriseblog-staging --create-namespace \
-            --values deploy/helm/phpinterpriseblog/values.staging.yaml \
-            --set image.repository=${{ vars.ECR_REGISTRY }}/phpinterpriseblog \
+          helm upgrade --install phpenterpriseblog deploy/helm/phpenterpriseblog \
+            --namespace phpenterpriseblog-staging --create-namespace \
+            --values deploy/helm/phpenterpriseblog/values.staging.yaml \
+            --set image.repository=${{ vars.ECR_REGISTRY }}/phpenterpriseblog \
             --set image.tag=${{ github.ref_name }} \
             --wait --timeout 5m --atomic
 
@@ -4152,7 +4152,7 @@ jobs:
     steps:
       - run: |
           for i in $(seq 1 30); do
-            if curl -fsS https://staging.phpinterpriseblog.example.com/healthz | grep -q '"db":"ok"'; then
+            if curl -fsS https://staging.phpenterpriseblog.example.com/healthz | grep -q '"db":"ok"'; then
               echo "Smoke passed"; exit 0
             fi
             sleep 5
@@ -4167,15 +4167,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpinterpriseblog-cd-eks
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT }}:role/phpenterpriseblog-cd-eks
           aws-region: ${{ vars.AWS_REGION }}
       - run: aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER }}
       - uses: azure/setup-helm@v4
       - run: |
-          helm upgrade --install phpinterpriseblog deploy/helm/phpinterpriseblog \
-            --namespace phpinterpriseblog-prod \
-            --values deploy/helm/phpinterpriseblog/values.prod.yaml \
-            --set image.repository=${{ vars.ECR_REGISTRY }}/phpinterpriseblog \
+          helm upgrade --install phpenterpriseblog deploy/helm/phpenterpriseblog \
+            --namespace phpenterpriseblog-prod \
+            --values deploy/helm/phpenterpriseblog/values.prod.yaml \
+            --set image.repository=${{ vars.ECR_REGISTRY }}/phpenterpriseblog \
             --set image.tag=${{ github.ref_name }} \
             --wait --timeout 10m --atomic
 ```
@@ -4203,7 +4203,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ```json
 {
-  "name": "phpinterpriseblog-e2e",
+  "name": "phpenterpriseblog-e2e",
   "private": true,
   "scripts": { "test": "playwright test", "report": "playwright show-report" },
   "devDependencies": { "@playwright/test": "^1.49.0", "typescript": "^5.6.0" }
@@ -4370,7 +4370,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Rewrite `README.md`**
 
 ```markdown
-# phpinterpriseblog
+# phpenterpriseblog
 
 PHP 8.5 enterprise-shaped remake of the Udemy `freeblog` MVC course project.
 
@@ -4444,7 +4444,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 - [ ] No `mysqli` references anywhere in `src/`.
 - [ ] All classes in `src/` have `declare(strict_types=1);`.
 - [ ] `composer ci` is green; `composer stan` at level 8.
-- [ ] `helm lint deploy/helm/phpinterpriseblog` clean.
+- [ ] `helm lint deploy/helm/phpenterpriseblog` clean.
 - [ ] `docker build` succeeds on a clean clone.
 - [ ] `make e2e` passes locally.
 - [ ] No file in `src/Models/` contains SQL.
