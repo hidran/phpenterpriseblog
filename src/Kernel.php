@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Controllers\HealthController;
 use App\Database\ConnectionFactory;
 use App\Http\Router;
 use App\Repositories\CommentRepository;
@@ -72,6 +73,7 @@ final readonly class Kernel
         $container->add(UserRepository::class)->addArgument(PDO::class);
         $container->add(CommentRepository::class)->addArgument(PDO::class);
         $container->add(AuthService::class)->addArgument(UserRepository::class);
+        $container->add(HealthController::class)->addArguments([View::class, PDO::class]);
 
         $routes = require $this->basePath . '/config/routes.php';
         $container->addShared(Router::class, fn (): \App\Http\Router => new Router($routes, $container));

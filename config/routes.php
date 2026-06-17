@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\HealthController;
 use App\Controllers\PostController;
 
 return [
@@ -14,7 +15,7 @@ return [
         'posts/:id/edit'   => [PostController::class, 'edit'],
         'auth/login'       => [AuthController::class, 'showLogin'],
         'auth/signup'      => [AuthController::class, 'showSignup'],
-        // 'healthz' => [App\Controllers\HealthController::class, 'check'], // Task 4.3: uncomment when HealthController is added
+        'healthz'          => [HealthController::class, 'check'],
     ],
     'POST' => [
         'posts'                  => [PostController::class, 'save'],
