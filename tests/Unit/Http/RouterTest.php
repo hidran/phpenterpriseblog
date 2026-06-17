@@ -50,4 +50,10 @@ final class RouterTest extends TestCase
         $this->expectException(RouteNotFoundException::class);
         (new Router($this->routes()))->dispatch('GET', '/nope');
     }
+
+    public function testMethodNotMatchedThrows(): void
+    {
+        $this->expectException(RouteNotFoundException::class);
+        (new Router($this->routes()))->dispatch('GET', '/posts/9/comments');
+    }
 }
