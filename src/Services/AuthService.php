@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
-use App\Repositories\UserRepository;
+use App\Repositories\UserRepositoryInterface;
 
 final readonly class AuthService
 {
-    public function __construct(private UserRepository $users)
+    public function __construct(private UserRepositoryInterface $users)
     {
     }
 

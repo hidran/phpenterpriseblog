@@ -7,7 +7,7 @@ namespace App\Repositories;
 use App\Models\User;
 use PDO;
 
-final readonly class UserRepository
+final readonly class UserRepository implements UserRepositoryInterface
 {
     public function __construct(private PDO $pdo)
     {
