@@ -21,11 +21,17 @@ final class PdoConnection
             PDO::ATTR_EMULATE_PREPARES   => false,
         ];
 
+        $caller = $options['options'] ?? [];
+        $merged = $caller + $defaultOptions;
+        // Hard-enforce: security attributes are non-negotiable, no matter what the caller passes.
+        $merged[PDO::ATTR_ERRMODE]          = PDO::ERRMODE_EXCEPTION;
+        $merged[PDO::ATTR_EMULATE_PREPARES] = false;
+
         $this->pdo = new PDO(
             $options['dsn'],
             $options['user'],
             $options['password'],
-            ($options['options'] ?? []) + $defaultOptions,
+            $merged,
         );
     }
 
