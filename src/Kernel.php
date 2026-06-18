@@ -9,6 +9,7 @@ use App\Cache\RedisCache;
 use App\Controllers\HealthController;
 use App\Database\ConnectionFactory;
 use App\Http\Router;
+use App\Session\RedisSessionHandler;
 use App\Support\Env;
 use App\Repositories\CommentRepository;
 use App\Repositories\PostRepository;
@@ -35,6 +36,7 @@ final readonly class Kernel
     public function handle(): void
     {
         $this->loadEnv();
+        $this->configureSession();
         session_start();
 
         $container = $this->buildContainer();
@@ -62,6 +64,21 @@ final readonly class Kernel
         if (is_file($envFile)) {
             Dotenv::createImmutable($this->basePath)->load();
         }
+    }
+
+    private function configureSession(): void
+    {
+        if (Env::string('SESSION_DRIVER', 'files') !== 'redis-tls') {
+            return;
+        }
+
+        $redis = new \Redis();
+        $redis->connect('tls://' . Env::string('REDIS_HOST'), Env::int('REDIS_PORT'));
+        $pw = Env::string('REDIS_PASSWORD', '');
+        if ($pw !== '') {
+            $redis->auth($pw);
+        }
+        session_set_save_handler(new RedisSessionHandler($redis), true);
     }
 
     private function buildContainer(): Container
