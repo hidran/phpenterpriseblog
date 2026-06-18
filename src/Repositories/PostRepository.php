@@ -21,8 +21,9 @@ class PostRepository
         $sql = 'SELECT p.*, u.email FROM posts p '
              . 'INNER JOIN users u ON u.id = p.user_id '
              . 'ORDER BY p.datecreated DESC';
-        $rows = $this->pdo->query($sql)?->fetchAll() ?: [];
-        return array_map(Post::fromRow(...), $rows);
+        $stmt = $this->pdo->query($sql);
+        $rows = $stmt === false ? [] : $stmt->fetchAll();
+        return array_values(array_map(Post::fromRow(...), $rows));
     }
 
     public function findById(int $id): ?Post

@@ -21,7 +21,7 @@ final readonly class CommentRepository
         $sql = 'SELECT * FROM post_comments WHERE post_id = :post_id ORDER BY datecreated DESC';
         $stm = $this->pdo->prepare($sql);
         $stm->execute(['post_id' => $postId]);
-        return array_map(Comment::fromRow(...), $stm->fetchAll());
+        return array_values(array_map(Comment::fromRow(...), $stm->fetchAll()));
     }
 
     /**

@@ -54,7 +54,8 @@ final readonly class MigrateCommand
      */
     private function appliedSet(): array
     {
-        $rows = $this->pdo->query('SELECT filename FROM migrations')?->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $stmt = $this->pdo->query('SELECT filename FROM migrations');
+        $rows = $stmt === false ? [] : $stmt->fetchAll(PDO::FETCH_COLUMN);
         return array_fill_keys($rows, true);
     }
 
