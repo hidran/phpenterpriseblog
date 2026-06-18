@@ -70,6 +70,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose up -d --wait
       - run: docker compose exec -T app php bin/console migrate
+      - run: docker compose exec -T mysql mysql -uroot -proot phpenterpriseblog < database/seeds/0001_demo.sql
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: |

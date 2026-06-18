@@ -1,4 +1,4 @@
-.PHONY: up down sh test test-all ci stan cs cs-fix migrate migrate-fresh e2e logs
+.PHONY: up down sh test test-all ci stan cs cs-fix migrate migrate-fresh seed e2e logs
 
 up:
 	docker compose up -d --wait
@@ -37,5 +37,8 @@ migrate:
 migrate-fresh:
 	docker compose exec -T app php bin/console migrate --fresh
 
-e2e:
+seed:
+	docker compose exec -T mysql mysql -uroot -proot phpenterpriseblog < database/seeds/0001_demo.sql
+
+e2e: seed
 	cd tests/E2e && npx playwright test
