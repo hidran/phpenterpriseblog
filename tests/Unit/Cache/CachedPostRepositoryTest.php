@@ -98,7 +98,7 @@ final class CachedPostRepositoryTest extends TestCase
     public function testSaveInvalidatesListKey(): void
     {
         $cache = $this->fakeCache();
-        $cache->set('posts:list:v1', ['stale']);
+        $cache->set('posts.list.v1', ['stale']);
 
         $stmt = $this->createMock(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
@@ -110,13 +110,13 @@ final class CachedPostRepositoryTest extends TestCase
         $id   = $repo->save(['user_id' => 1, 'title' => 't', 'message' => 'm']);
 
         self::assertSame(42, $id);
-        self::assertNull($cache->get('posts:list:v1'));
+        self::assertNull($cache->get('posts.list.v1'));
     }
 
     public function testAllReturnsCachedListWithoutTouchingDb(): void
     {
         $cache = $this->fakeCache();
-        $cache->set('posts:list:v1', [$this->post(1), $this->post(2)]);
+        $cache->set('posts.list.v1', [$this->post(1), $this->post(2)]);
 
         $pdo = $this->createMock(PDO::class);
         $pdo->expects($this->never())->method('query');
@@ -131,7 +131,7 @@ final class CachedPostRepositoryTest extends TestCase
     public function testFindByIdReturnsCachedPostWithoutTouchingDb(): void
     {
         $cache = $this->fakeCache();
-        $cache->set('posts:show:5:v1', $this->post(5));
+        $cache->set('posts.show.5.v1', $this->post(5));
 
         $pdo = $this->createMock(PDO::class);
         $pdo->expects($this->never())->method('prepare');
@@ -146,8 +146,8 @@ final class CachedPostRepositoryTest extends TestCase
     public function testDeleteInvalidatesBothKeys(): void
     {
         $cache = $this->fakeCache();
-        $cache->set('posts:list:v1', ['stale']);
-        $cache->set('posts:show:7:v1', $this->post(7));
+        $cache->set('posts.list.v1', ['stale']);
+        $cache->set('posts.show.7.v1', $this->post(7));
 
         $stmt = $this->createMock(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
@@ -157,7 +157,7 @@ final class CachedPostRepositoryTest extends TestCase
 
         $repo = new CachedPostRepository($pdo, $cache);
         self::assertTrue($repo->delete(7));
-        self::assertNull($cache->get('posts:list:v1'));
-        self::assertNull($cache->get('posts:show:7:v1'));
+        self::assertNull($cache->get('posts.list.v1'));
+        self::assertNull($cache->get('posts.show.7.v1'));
     }
 }

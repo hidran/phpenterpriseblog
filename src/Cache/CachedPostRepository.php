@@ -12,7 +12,8 @@ final class CachedPostRepository extends PostRepository
 {
     private const TTL_LIST = 60;
     private const TTL_SHOW = 300;
-    private const KEY_LIST = 'posts:list:v1';
+    // PSR-16 reserves the characters {}()/\@: in keys, so the segments are dot-separated.
+    private const KEY_LIST = 'posts.list.v1';
 
     public function __construct(PDO $pdo, private readonly CacheInterface $cache)
     {
@@ -82,6 +83,6 @@ final class CachedPostRepository extends PostRepository
 
     private static function keyShow(int $id): string
     {
-        return "posts:show:{$id}:v1";
+        return "posts.show.{$id}.v1";
     }
 }

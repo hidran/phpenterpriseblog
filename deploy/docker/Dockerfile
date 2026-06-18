@@ -20,6 +20,9 @@ RUN set -eux; \
     docker-php-ext-enable redis; \
     apk del .build
 
+# composer is needed in-container for the Makefile dev targets (make ci/test/stan/cs)
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
 COPY deploy/docker/php.ini       /usr/local/etc/php/conf.d/zz-app.ini
 COPY deploy/docker/php-fpm.conf  /usr/local/etc/php-fpm.d/zz-app.conf
 
