@@ -1,0 +1,11 @@
+image:
+  repository: "${ECR_REGISTRY}/phpenterpriseblog"  # overridden by --set in CI
+env:
+  APP_ENV: staging
+ingress:
+  hosts:
+    - { host: staging.phpenterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
+externalSecrets:
+  secrets:
+    - { name: phpenterpriseblog-db,    remoteRef: phpenterpriseblog/staging/db }
+    - { name: phpenterpriseblog-redis, remoteRef: phpenterpriseblog/staging/redis }

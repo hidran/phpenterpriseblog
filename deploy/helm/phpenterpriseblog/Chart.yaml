@@ -1,0 +1,6 @@
+apiVersion: v2
+name: phpenterpriseblog
+description: PHP 8.5 enterprise-shaped blog
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

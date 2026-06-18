@@ -1,0 +1,12 @@
+image:
+  repository: "${ECR_REGISTRY}/phpenterpriseblog"
+env:
+  APP_ENV: production
+ingress:
+  hosts:
+    - { host: phpenterpriseblog.example.com, paths: [ { path: /, pathType: Prefix } ] }
+externalSecrets:
+  secrets:
+    - { name: phpenterpriseblog-db,    remoteRef: phpenterpriseblog/prod/db }
+    - { name: phpenterpriseblog-redis, remoteRef: phpenterpriseblog/prod/redis }
+hpa: { minReplicas: 3, maxReplicas: 20 }
