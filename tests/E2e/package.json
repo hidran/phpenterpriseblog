@@ -1,0 +1,6 @@
+{
+  "name": "phpenterpriseblog-e2e",
+  "private": true,
+  "scripts": { "test": "playwright test", "report": "playwright show-report" },
+  "devDependencies": { "@playwright/test": "^1.49.0", "typescript": "^5.6.0" }
+}

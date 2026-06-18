@@ -1,5 +1,7 @@
 /vendor/
 /node_modules/
+/tests/E2e/node_modules/
+/tests/E2e/.cache/
 .env
 .env.*.local
 .phpunit.cache/
