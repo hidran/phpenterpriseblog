@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Cache\CacheInterface;
+use App\Cache\RedisCache;
 use App\Controllers\HealthController;
 use App\Database\ConnectionFactory;
 use App\Http\Router;
+use App\Support\Env;
 use App\Repositories\CommentRepository;
 use App\Repositories\PostRepository;
 use App\Repositories\UserRepository;
@@ -68,6 +71,7 @@ final readonly class Kernel
 
         $container->addShared(PDO::class, ConnectionFactory::fromEnv(...));
         $container->addShared(View::class, fn (): \App\Support\View => new View($this->basePath . '/resources/views'));
+        $container->addShared(CacheInterface::class, fn (): CacheInterface => new RedisCache(Env::string('REDIS_DSN')));
 
         $container->add(PostRepository::class)->addArgument(PDO::class);
         $container->add(UserRepository::class)->addArgument(PDO::class);
