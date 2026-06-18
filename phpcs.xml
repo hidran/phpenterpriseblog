@@ -10,6 +10,7 @@
     <exclude-pattern>*/resources/views/*</exclude-pattern>
     <exclude-pattern>*/database/*</exclude-pattern>
     <exclude-pattern>*/tests/Fixtures/*</exclude-pattern>
+    <exclude-pattern>*/tests/E2e/*</exclude-pattern>
 
     <arg name="colors"/>
     <arg value="np"/>
