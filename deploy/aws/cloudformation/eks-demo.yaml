@@ -1,0 +1,296 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  phpenterpriseblog presentation demo — lean EKS stack.
+  VPC (public subnets, no NAT), EKS cluster + managed node group, ECR repo,
+  GitHub OIDC provider (optional) and the CI (ECR push) + CD (EKS deploy) IAM
+  roles. MySQL and Redis are NOT created here — they run in-cluster as pods for
+  the demo. One `aws cloudformation deploy` builds it; one `delete-stack` removes
+  it. Tear down the Helm release (and any cloud load balancer it created) BEFORE
+  deleting this stack — see deploy/aws/presentation/down.sh.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: phpenterpriseblog
+    Description: Name prefix for all resources (cluster, ECR repo, roles).
+  GitHubOwner:
+    Type: String
+    Description: GitHub org/user that owns the repo (used to scope the OIDC trust).
+    Default: hidran
+  GitHubRepo:
+    Type: String
+    Default: phpenterpriseblog
+    Description: GitHub repository name (used to scope the OIDC trust).
+  GitHubOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: >-
+      ARN of an EXISTING GitHub Actions OIDC provider. Leave blank to have this
+      stack create one (an account may only have a single provider for a given
+      URL, so reuse the existing ARN if you already have one).
+  KubernetesVersion:
+    Type: String
+    Default: "1.31"
+    Description: EKS control-plane version (>= 1.30).
+  NodeInstanceType:
+    Type: String
+    Default: t3.medium
+    Description: Worker node instance type (t3.small is enough for a tiny demo).
+  NodeCount:
+    Type: Number
+    Default: 2
+    Description: Desired worker node count.
+
+Conditions:
+  CreateOidcProvider: !Equals [!Ref GitHubOidcProviderArn, ""]
+
+Mappings: {}
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # Networking — a minimal public-subnet VPC (no NAT gateway to keep cost down).
+  # ---------------------------------------------------------------------------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-vpc" }
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-igw" }
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.0.0/20
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-a" }
+        - { Key: kubernetes.io/role/elb, Value: "1" }
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.16.0/20
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-b" }
+        - { Key: kubernetes.io/role/elb, Value: "1" }
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-rt" }
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+  # ---------------------------------------------------------------------------
+  # IAM — EKS control-plane role and worker-node role.
+  # ---------------------------------------------------------------------------
+  ClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-eks-cluster"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: eks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+
+  NodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-eks-node"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  # ---------------------------------------------------------------------------
+  # EKS cluster + managed node group.
+  # ---------------------------------------------------------------------------
+  Cluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ProjectName
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt ClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds:
+          - !Ref PublicSubnetA
+          - !Ref PublicSubnetB
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: false
+
+  NodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Ref Cluster
+      NodegroupName: !Sub "${ProjectName}-ng"
+      NodeRole: !GetAtt NodeRole.Arn
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      ScalingConfig:
+        MinSize: 1
+        DesiredSize: !Ref NodeCount
+        MaxSize: !Ref NodeCount
+
+  # ---------------------------------------------------------------------------
+  # ECR — the image registry. EmptyOnDelete lets delete-stack remove it even
+  # when it still holds pushed images.
+  # ---------------------------------------------------------------------------
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref ProjectName
+      EmptyOnDelete: true
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions OIDC — keyless auth for CI/CD (created only if not supplied).
+  # ---------------------------------------------------------------------------
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  # CI role: GitHub Actions assumes this to push images to ECR (main + v* tags).
+  CiEcrRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-ci-ecr"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub "repo:${GitHubOwner}/${GitHubRepo}:ref:refs/heads/main"
+                  - !Sub "repo:${GitHubOwner}/${GitHubRepo}:ref:refs/tags/v*"
+      Policies:
+        - PolicyName: ecr-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:BatchGetImage
+                Resource: !GetAtt EcrRepository.Arn
+
+  # CD role: GitHub Actions assumes this (v* tags only) to deploy to EKS.
+  CdEksRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-cd-eks"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub "repo:${GitHubOwner}/${GitHubRepo}:ref:refs/tags/v*"
+      Policies:
+        - PolicyName: eks-describe
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: eks:DescribeCluster
+                Resource: !GetAtt Cluster.Arn
+
+Outputs:
+  ClusterName:
+    Description: EKS cluster name (use with `aws eks update-kubeconfig`).
+    Value: !Ref Cluster
+  EcrRepositoryUri:
+    Description: ECR repository URI to tag/push images to.
+    Value: !GetAtt EcrRepository.RepositoryUri
+  CiEcrRoleArn:
+    Description: ARN to set as the CI (ECR push) role in GitHub.
+    Value: !GetAtt CiEcrRole.Arn
+  CdEksRoleArn:
+    Description: ARN to set as the CD (EKS deploy) role in GitHub.
+    Value: !GetAtt CdEksRole.Arn
+  Region:
+    Description: AWS region the stack was deployed to.
+    Value: !Ref AWS::Region

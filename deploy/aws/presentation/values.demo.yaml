@@ -1,0 +1,24 @@
+# Helm overlay for the LEAN AWS DEMO.
+# image.repository / image.tag are supplied by up.sh via --set (the ECR URI/tag).
+#
+# Differences from the production values:
+#  - no ExternalSecrets (db/redis Secrets are applied directly by in-cluster-deps.yaml)
+#  - no ALB ingress and no HPA/PDB (those need extra cluster add-ons we skip for a demo)
+#  - file-based sessions (in-cluster Redis has no TLS, so the redis-tls path is off)
+externalSecrets:
+  secrets: []      # the chart's externalsecret.yaml ranges over this — empty = none
+
+ingress:
+  enabled: false   # no AWS Load Balancer Controller in the lean demo; use port-forward
+
+hpa:
+  enabled: false   # no metrics-server in the lean demo
+
+pdb:
+  enabled: false
+
+replicaCount: 2
+
+env:
+  APP_ENV: demo
+  SESSION_DRIVER: files   # in-cluster Redis is plaintext; avoid the redis-tls handler

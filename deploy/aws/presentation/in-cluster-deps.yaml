@@ -1,0 +1,117 @@
+# In-cluster MySQL + Redis for the LEAN DEMO (instead of RDS / ElastiCache),
+# plus the two Secrets the Helm chart's Deployment/Job consume via envFrom.
+# Applied into the phpenterpriseblog-demo namespace by up.sh BEFORE `helm install`
+# (the chart's pre-install migrate hook needs MySQL reachable).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: phpenterpriseblog-demo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: phpenterpriseblog-db
+  namespace: phpenterpriseblog-demo
+type: Opaque
+stringData:
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_DATABASE: phpenterpriseblog
+  DB_USERNAME: root
+  DB_PASSWORD: root
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: phpenterpriseblog-redis
+  namespace: phpenterpriseblog-demo
+type: Opaque
+stringData:
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: devpass
+  REDIS_DSN: redis://:devpass@redis:6379/0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: phpenterpriseblog-demo
+  labels: { app: mysql }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: mysql } }
+  template:
+    metadata:
+      labels: { app: mysql }
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          env:
+            - { name: MYSQL_ROOT_PASSWORD, value: root }
+            - { name: MYSQL_DATABASE, value: phpenterpriseblog }
+          ports:
+            - containerPort: 3306
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -uroot -proot --silent"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits:   { cpu: "1",  memory: 768Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/mysql }
+      volumes:
+        - name: data
+          emptyDir: {}   # ephemeral — demo data is thrown away on teardown
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: phpenterpriseblog-demo
+spec:
+  selector: { app: mysql }
+  ports:
+    - { port: 3306, targetPort: 3306 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: phpenterpriseblog-demo
+  labels: { app: redis }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata:
+      labels: { app: redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["redis-server", "--requirepass", "devpass"]
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a devpass ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m,  memory: 64Mi }
+            limits:   { cpu: 200m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: phpenterpriseblog-demo
+spec:
+  selector: { app: redis }
+  ports:
+    - { port: 6379, targetPort: 6379 }
