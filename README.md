@@ -4,7 +4,10 @@ PHP 8.5 enterprise-shaped remake of the Udemy `freeblog` MVC course project.
 
 ## Quickstart
 ```bash
-make up         # docker compose up + migrate
+composer install   # required first: the app container bind-mounts the repo and
+                   # opcache.preload needs vendor/ (without it php-fpm exits 70)
+make up            # docker compose up + migrate
+make seed          # optional: load demo data
 open http://localhost:8080
 ```
 
