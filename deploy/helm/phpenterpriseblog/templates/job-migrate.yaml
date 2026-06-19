@@ -11,7 +11,9 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      # No serviceAccountName: this runs as a pre-install hook, before the
+      # chart's ServiceAccount exists. It only needs DB creds (from the secret),
+      # not the app's identity, so the namespace default SA is fine.
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: migrate
